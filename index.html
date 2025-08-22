@@ -51,7 +51,18 @@
       color: 0x0099ff,
       color2: 0xffffff,
       backgroundColor: 0x0d0d0d
-    })
+    });
+
+    // === Fullscreen toggle dengan tombol "F" ===
+    document.addEventListener("keydown", function (e) {
+      if (e.key.toLowerCase() === "f") {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen();
+        } else {
+          document.exitFullscreen();
+        }
+      }
+    });
   </script>
 </body>
 </html>
