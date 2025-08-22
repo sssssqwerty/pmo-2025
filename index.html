@@ -1,177 +1,57 @@
-<!doctype html>
-<html lang="id">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>3D Follow Mouse – Demo</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PMO 2025</title>
   <style>
-    /* Halaman full-bleed */
-    html, body { height: 100%; margin: 0; }
     body {
-      background: radial-gradient(1200px 800px at 70% 20%, #1c1f2a, #0e1117);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      margin: 0;
       overflow: hidden;
-      color: #e7eaf3;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #0d0d0d;
+      color: white;
     }
-    /* Canvas selalu memenuhi layar & responsif */
-    canvas { display: block; width: 100%; height: 100%; }
 
-    /* UI kecil */
-    .badge {
-      position: fixed; left: 12px; bottom: 12px;
-      padding: 8px 10px; font-size: 12px; opacity: .8;
-      backdrop-filter: blur(8px);
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.12);
-      border-radius: 10px;
-      user-select: none;
+    #vanta-bg {
+      width: 100vw;
+      height: 100vh;
     }
-    .badge b { opacity: .9 }
-    @media (prefers-reduced-motion: reduce) {
-      /* Kurangi animasi untuk pengguna yang sensitif terhadap gerak */
-      .badge::after { content: " • reduced motion"; opacity: .7; }
+
+    .overlay-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 5em;
+      font-weight: bold;
+      color: #ffffff;
+      text-shadow: 0 0 20px rgba(0, 153, 255, 0.8), 0 0 40px rgba(0, 153, 255, 0.6);
+      letter-spacing: 4px;
+      text-align: center;
     }
   </style>
 </head>
 <body>
-  <div class="badge"><b>Drag / gerakkan</b> mouse / sentuh ✨</div>
-  <!-- Three.js via ES Module CDN -->
-  <script type="module">
-    import * as THREE from "https://unpkg.com/three@0.161.0/build/three.module.js";
+  <div id="vanta-bg"></div>
+  <div class="overlay-text">PMO 2025</div>
 
-    // ---- Scene dasar
-    const scene = new THREE.Scene();
-
-    // Camera sedikit perspektif lebar biar dramatis
-    const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 100);
-    camera.position.set(0, 0.2, 3.5);
-
-    // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); // jaga performa
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    document.body.appendChild(renderer.domElement);
-
-    // ---- Pencahayaan lembut
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x223344, 0.85);
-    scene.add(hemi);
-
-    const key = new THREE.DirectionalLight(0xffffff, 1.0);
-    key.position.set(2, 3, 4);
-    scene.add(key);
-
-    const rim = new THREE.DirectionalLight(0x7aa5ff, 0.6);
-    rim.position.set(-3, 1, -2);
-    scene.add(rim);
-
-    // ---- Objek 3D: Icosahedron low-poly (bisa diubah ke Box/Torus/etc)
-    const geo = new THREE.IcosahedronGeometry(1, 1); // radius=1, detail=1 (low-poly)
-    const mat = new THREE.MeshStandardMaterial({
-      color: 0x9cc6ff,
-      metalness: 0.25,
-      roughness: 0.35,
-      flatShading: true
-    });
-    const mesh = new THREE.Mesh(geo, mat);
-    scene.add(mesh);
-
-    // Aksen wireframe tipis
-    const wire = new THREE.LineSegments(
-      new THREE.WireframeGeometry(geo),
-      new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12 })
-    );
-    mesh.add(wire);
-
-    // ---- Target gerakan dari input pointer
-    let targetRotX = 0, targetRotY = 0;
-    let targetOffsetX = 0, targetOffsetY = 0;
-
-    // Normalisasi posisi pointer -> [-1, 1]
-    function handlePointer(normX, normY) {
-      const strengthRot = 0.9;   // seberapa banyak mengikuti rotasi
-      const strengthOff = 0.25;  // seberapa banyak offset posisi (parallax)
-
-      targetRotY = normX * strengthRot;    // rotasi horizontal
-      targetRotX = normY * strengthRot;    // rotasi vertikal
-      targetOffsetX = normX * strengthOff; // geser posisi sedikit untuk depth feel
-      targetOffsetY = -normY * strengthOff;
-    }
-
-    // Mouse
-    window.addEventListener("pointermove", (e) => {
-      const nx = (e.clientX / window.innerWidth) * 2 - 1;
-      const ny = (e.clientY / window.innerHeight) * 2 - 1;
-      handlePointer(nx, ny);
-    }, { passive: true });
-
-    // Sentuh (HP)
-    window.addEventListener("touchmove", (e) => {
-      if (!e.touches.length) return;
-      const t = e.touches[0];
-      const nx = (t.clientX / window.innerWidth) * 2 - 1;
-      const ny = (t.clientY / window.innerHeight) * 2 - 1;
-      handlePointer(nx, ny);
-    }, { passive: true });
-
-    // Animasi
-    const lerp = (a, b, t) => a + (b - a) * t;
-    let rotX = 0, rotY = 0, offX = 0, offY = 0;
-
-    let last = performance.now();
-    let running = true;
-
-    function tick(now = performance.now()) {
-      if (!running) return;
-      const dt = Math.min((now - last) / 1000, 0.033); // clamp
-      last = now;
-
-      // smoothing berdasarkan dt
-      const follow = 1 - Math.pow(0.08, dt * 60); // kira2 ~8% per frame @60fps
-
-      rotX = lerp(rotX, targetRotX, follow);
-      rotY = lerp(rotY, targetRotY, follow);
-      offX = lerp(offX, targetOffsetX, follow);
-      offY = lerp(offY, targetOffsetY, follow);
-
-      // idle rotation ringan biar hidup ketika tidak ada input
-      const t = now * 0.0004;
-      mesh.rotation.x = rotX + Math.sin(t) * 0.08;
-      mesh.rotation.y = rotY + Math.cos(t) * 0.1;
-
-      mesh.position.x = offX;
-      mesh.position.y = offY;
-
-      // scale napas halus
-      const s = 1 + Math.sin(now * 0.002) * 0.02;
-      mesh.scale.setScalar(s);
-
-      renderer.render(scene, camera);
-      requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
-
-    // Responsif
-    function onResize() {
-      const w = window.innerWidth, h = window.innerHeight;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
-    }
-    window.addEventListener("resize", onResize);
-
-    // Pause saat tab tidak aktif (hemat baterai)
-    document.addEventListener("visibilitychange", () => {
-      running = document.visibilityState === "visible";
-      if (running) { last = performance.now(); requestAnimationFrame(tick); }
-    });
-
-    // Fallback kalau WebGL tidak didukung
-    if (!renderer.capabilities.isWebGL2 && !renderer.capabilities.isWebGL) {
-      document.body.innerHTML = "<p style='padding:16px'>Browser kamu tidak mendukung WebGL. Coba update browser atau gunakan Chrome/Firefox/Edge versi terbaru.</p>";
-    }
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.globe.min.js"></script>
+  <script>
+    VANTA.GLOBE({
+      el: "#vanta-bg",
+      mouseControls: true,
+      touchControls: true,
+      gyroControls: false,
+      minHeight: 200.00,
+      minWidth: 200.00,
+      scale: 1.00,
+      scaleMobile: 1.00,
+      color: 0x0099ff,
+      color2: 0xffffff,
+      backgroundColor: 0x0d0d0d
+    })
   </script>
 </body>
 </html>
-
-
